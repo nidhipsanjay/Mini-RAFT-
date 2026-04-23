@@ -1,6 +1,6 @@
 {
-  "currentTerm": 20,
-  "votedFor": null,
+  "currentTerm": 26,
+  "votedFor": "replica-3",
   "log": {
     "OAYDM": [
       {

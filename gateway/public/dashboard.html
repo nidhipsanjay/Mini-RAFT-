@@ -2,19 +2,21 @@
 <html>
 <head>
   <title>RAFT Cluster Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
 
-<h1>⚡ RAFT Cluster Dashboard</h1>
+  <div class="header">
+    <h1><i class="fa-solid fa-network-wired"></i> RAFT Cluster Status</h1>
+    <div class="summary" id="summary"><i class="fa-solid fa-spinner fa-spin"></i> Fetching telemetry...</div>
+  </div>
 
-<div class="grid">
-  <div class="card" id="r1"></div>
-  <div class="card" id="r2"></div>
-  <div class="card" id="r3"></div>
-</div>
-
-<div class="summary" id="summary"></div>
+  <div class="grid">
+    <div class="card" id="r1"></div>
+    <div class="card" id="r2"></div>
+    <div class="card" id="r3"></div>
+  </div>
 
 <script src="dashboard.js"></script>
 </body>

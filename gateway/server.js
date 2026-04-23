@@ -305,6 +305,11 @@ app.get('/cluster-status', async (req, res) => {
     res.json(formatted);
 });
 
+// Clean URL for the dashboard
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
 const PORT = 3000;
 server.listen(PORT, () => {
     console.log(`Gateway running on http://localhost:${PORT}`);
