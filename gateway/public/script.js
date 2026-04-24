@@ -10,18 +10,23 @@ let lastEmitX = 0; // Track the X coordinate of the last network emit
 let lastEmitY = 0; // Track the Y coordinate of the last network emit
 let currentStrokeBatchId = null; // Groups a full mouse-drag together
 
+// --- REDO STATE TRACKERS ---
+let localStrokeBatches = []; 
+let redoStack = [];
+let currentBatch = [];
+
 const loginScreen = document.getElementById('loginScreen');
 const boardContainer = document.getElementById('boardContainer');
 const displayRoomId = document.getElementById('displayRoomId');
 const nameInput = document.getElementById('usernameInput');
 
 // Generate a random 5-letter code (e.g., "X7B9Q")
-function generateRoomCode() {
+/*function generateRoomCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 5; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     return code;
-}
+}*/
 
 function enterRoom(roomId, isCreating) {
     const name = nameInput.value.trim();
@@ -47,8 +52,18 @@ function enterRoom(roomId, isCreating) {
 }
 
 // Button: Create New Room (Tells enterRoom that isCreating = true)
-document.getElementById('createRoomBtn').addEventListener('click', () => {
-    enterRoom(generateRoomCode(), true);
+document.getElementById('createRoomBtn').addEventListener('click', async () => {
+    try {
+        // 1. Ask the Gateway for a guaranteed unique room ID!
+        const response = await fetch('/api/generate-room');
+        const data = await response.json();
+        
+        // 2. Join the room using the safe ID the server gave us
+        enterRoom(data.roomId, true);
+    } catch (error) {
+        console.error("Failed to generate room:", error);
+        alert("Couldn't reach the server to create a room!");
+    }
 });
 
 // Button: Join Existing Room (Tells enterRoom that isCreating = false)
@@ -251,11 +266,12 @@ function drawLine(startX, startY, endX, endY, color, thickness, tool) {
 function emitStroke(startX, startY, endX, endY) {
     const now = Date.now();
     
-    if (now - lastEmitTime > 10) {
+    if (now - lastEmitTime > 30) {
         const strokeData = {
-            strokeId: currentStrokeBatchId, // USE THE BATCH ID
+            strokeId: currentStrokeBatchId,
             roomId: myRoomId,
             userName: myUserName,
+            userId: socket.id, 
             startX: startX, 
             startY: startY,
             endX: endX,
@@ -264,6 +280,9 @@ function emitStroke(startX, startY, endX, endY) {
             thickness: parseInt(currentWidth),
             tool: currentTool 
         };
+
+        // Record the stroke locally before emitting
+        currentBatch.push(strokeData);
         
         socket.emit('draw-stroke', strokeData);
     }
@@ -274,10 +293,13 @@ canvas.addEventListener('mousedown', (e) => {
     lastX = e.offsetX;
     lastY = e.offsetY;
 
-    // Start a new batch and log the starting point for the network
     currentStrokeBatchId = generateUUID(); 
     lastEmitX = lastX;
     lastEmitY = lastY;
+    
+    // Reset the trackers for a new drawing
+    currentBatch = [];
+    redoStack = []; // Drawing something new invalidates the redo future
 });
 
 canvas.addEventListener('mousemove', (e) => {
@@ -312,15 +334,23 @@ canvas.addEventListener('mousemove', (e) => {
     
     // Reset the emit trackers here instead of in emitStroke
     const now = Date.now();
-    if (now - lastEmitTime > 10) {
+    if (now - lastEmitTime > 30) {
         lastEmitTime = now;
         lastEmitX = currentX;
         lastEmitY = currentY;
     }
 });
 
-canvas.addEventListener('mouseup', () => isDrawing = false);
-canvas.addEventListener('mouseout', () => isDrawing = false);
+// Save the batch when the user lifts their mouse
+const stopDrawing = () => {
+    if (isDrawing && currentBatch.length > 0) {
+        localStrokeBatches.push([...currentBatch]);
+    }
+    isDrawing = false;
+};
+
+canvas.addEventListener('mouseup', stopDrawing);
+canvas.addEventListener('mouseout', stopDrawing);
 
 // --- SERVER EVENTS ---
 socket.on('remote-stroke', (data) => {
@@ -386,5 +416,44 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
 
 // The Undo Feature
 document.getElementById('undoBtn').addEventListener('click', () => {
+    if (localStrokeBatches.length > 0) {
+        // Move the last drawing batch from our history into the redo stack
+        redoStack.push(localStrokeBatches.pop());
+    }
     socket.emit('undo-stroke');
+});
+
+document.getElementById('redoBtn').addEventListener('click', () => {
+    if (redoStack.length > 0) {
+        const batchToRedo = redoStack.pop();
+        const newBatchId = generateUUID(); 
+        const newBatch = [];
+
+        // THE FIX: Use an interval to stream the strokes slowly instead of a DDoS blast!
+        let i = 0;
+        const redoInterval = setInterval(() => {
+            if (i >= batchToRedo.length) {
+                clearInterval(redoInterval);
+                // Save this new batch into our history after it finishes rendering
+                localStrokeBatches.push(newBatch);
+                return;
+            }
+
+            const stroke = batchToRedo[i];
+            const redoStroke = { ...stroke, strokeId: newBatchId };
+            newBatch.push(redoStroke);
+            
+            // 1. Draw it locally
+            drawLine(
+                redoStroke.startX, redoStroke.startY, 
+                redoStroke.endX, redoStroke.endY, 
+                redoStroke.color, redoStroke.thickness, redoStroke.tool
+            );
+            
+            // 2. Send it to the RAFT cluster
+            socket.emit('draw-stroke', redoStroke);
+            
+            i++;
+        }, 25); // A 10ms gap gives the backend CPU time to breathe
+    }
 });

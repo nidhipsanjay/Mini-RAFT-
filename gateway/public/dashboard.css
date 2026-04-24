@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+body {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  text-align: center;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.header { margin-bottom: 40px; }
+
+h1 {
+  font-size: 2.5rem;
+  margin: 0 0 15px 0;
+  color: #f8fafc;
+}
+
+.summary {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 12px 25px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 30px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.grid {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 30px 20px;
+  border-radius: 16px;
+  width: 250px;
+  transition: transform 0.3s ease;
+  /* Clean, standard drop shadow. No glowing colors! */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); 
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card:hover { transform: translateY(-5px); }
+
+.card h2 { 
+  margin-top: 0; 
+  font-size: 1.4rem; 
+  color: #f8fafc; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.card p {
+  margin: 15px 0;
+  font-size: 1rem;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 8px;
+}
+
+/* --- Clean Flat Borders (No Glow) --- */
+.leader { border-top: 5px solid #10b981; }
+.follower { border-top: 5px solid #3b82f6; }
+.down { border-top: 5px solid #ef4444; opacity: 0.6; filter: grayscale(50%); }
+
+/* Pill Badges */
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.badge-leader { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.badge-follower { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.badge-down { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
