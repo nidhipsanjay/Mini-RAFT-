@@ -68,19 +68,35 @@ async function findLeader(force = false) {
 
 async function requestViaLeader(requestFn) {
     let leader = currentLeader || await findLeader();
-    if (!leader) throw new Error('No active leader found');
+
+    // THE FIX: If there is no leader, the cluster is probably in the middle of an election!
+    // Wait 1 second for them to finish voting, then check again.
+    if (!leader) {
+        console.log("[Gateway] Cluster is voting! Holding strokes in the waiting room...");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        leader = await findLeader(true);
+    }
+
+    if (!leader) throw new Error('No active leader found after waiting');
 
     try {
         return await requestFn(leader);
     } catch (error) {
-        // If the leader hangs or drops the request, instantly wipe it
         console.log(`[Gateway] Leader ${leader} failed. Wiping from memory and retrying...`);
         currentLeader = null; 
         
-        leader = await findLeader(true); // Force scan for the new leader
+        leader = await findLeader(true); 
+        
+        // THE FIX: Wait here too, just in case the old leader JUST died and voting just started!
+        if (!leader) {
+            console.log("[Gateway] Cluster is voting! Holding strokes in the waiting room...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            leader = await findLeader(true);
+        }
+
         if (!leader) throw new Error('No active leader found after retry');
         
-        return requestFn(leader); // Try one more time with the new leader
+        return requestFn(leader); 
     }
 }
 
@@ -242,7 +258,7 @@ io.on('connection', (socket) => {
         // "Fire and Forget". Send it to the RAFT cluster in the 
         // background, but do NOT halt the WebSocket thread to wait for it.
         requestViaLeader((leader) =>
-            axios.post(`${leader}/client-stroke`, strokeData, { timeout: 2000 })
+            axiosInstance.post(`${leader}/client-stroke`, strokeData, { timeout: 2000 })
         ).catch(() => {
             // Silently ignore drops. Our background health-checker will handle UI warnings.
         });
